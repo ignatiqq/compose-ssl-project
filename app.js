@@ -15,6 +15,12 @@ router.get('/',function(req,res){
   res.sendFile(path + 'index.html');
 });
 
+// For caching test
+router.get('/cached', (req, res) => {
+  console.log("REQUEST ON CACHED ENDPOINT")
+  res.end(JSON.stringify(new Array(100).fill({title: 'hello'})));
+})
+
 router.get('/sharks',function(req,res){
   res.sendFile(path + 'sharks.html');
 });
