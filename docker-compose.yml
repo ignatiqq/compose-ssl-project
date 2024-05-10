@@ -1,0 +1,67 @@
+# volumes - https://spacelift.io/blog/docker-volumes / постоянное хранилище для стейтфул контейнеров
+# например дб, чтобы сохранить даннфе после остановки контейнера
+# sytax: volume_name:path -> demo:/demo/files
+
+# filesystem check - docker exec -it nodejs /bin/sh
+services:
+  nodejs:
+    build:
+      # контекст сборки (копирования файлов и тд)
+      context: .
+      dockerfile: Dockerfile
+      # название образа и контейнера
+    image: nodejs
+    container_name: nodejs
+    # перезапуск контейнера если остановился
+    restart: unless-stopped
+    volumes:
+      # should be the same as WORKDIR in Dockerfile
+      - ./:/home/node/app
+    # Когда контейнеры размещаются в одной сети, они доступны друг другу, используя имя контейнера и другой псевдоним в качестве хоста.
+    networks:
+      - app-network
+
+  webserver:
+    # используем уже созданную конфигурацию для загрузки nginx в контейнере
+    image: nginx:mainline-alpine
+    container_name: webserver
+    restart: unless-stopped
+    # будет слушать 80 порт в контейнере и отдаст его наружу
+    ports: 
+      - 5050:80
+    volumes:
+      - web-root:/var/www/html
+      - ./nginx-conf:/etc/nginx/conf.d
+      # access to generated certificates с помощью certbot сервиса из image 
+      - certbot-etc:/etc/letsencrypt
+      - certbot-var:/var/lib/letsencrypt
+      # просто порядок в котором сервисы будут запускаться в контейнерах
+    depends_on: 
+      - nodejs
+    networks:
+      - app-network
+
+  # certbot:
+  #   image: certbot/certbot
+  #   container_name: certbot
+  #   # create certificates
+  #   volumes:
+  #     - certbot-etc:/etc/letsencrypt
+  #     - certbot-var:/var/lib/letsencrypt
+  #     - web-root:/var/www/html
+  #   depends_on:
+  #     - webserver
+  #   # certbot auth command to create certificates
+  #   command: certonly --webroot --webroot-path=/var/www/html --email whitewater09@mail.ru --agree-tos --no-eff-email --staging -d localhost.com  -d www.localhost.com
+  
+volumes:
+  certbot-etc:
+  certbot-var:
+  web-root:
+    # driver: name
+    driver: local
+
+networks:
+  app-network:
+    # способ связки контейнеров в одну сеть
+    driver: bridge
